@@ -3,14 +3,53 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Main {
-    private static final HashMap<String, String> dataStore = new HashMap<>();
+    private static final ConcurrentHashMap<String, ExpiringValue> dataStore = new ConcurrentHashMap<>();
+
+    static class ExpiringValue {
+        String value;
+        long expirationTime;
+
+        public ExpiringValue(String value, long expirationTime) {
+            this.value = value;
+            this.expirationTime = expirationTime;
+        }
+
+        public boolean isExpired() {
+            if (expirationTime == 0) {
+                return false; // No expiration
+            }
+            return System.currentTimeMillis() > expirationTime;
+        }
+    }
     public static void main(String[] args) {
         int port = 6379;
         
         System.out.println("Starting server on port " + port);
+
+        Thread cleanerThread = new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(1000); // Check every second
+                    
+                    for (String key : dataStore.keySet()) {
+                        ExpiringValue value = dataStore.get(key);
+                        if (value != null && value.isExpired()) {
+                            dataStore.remove(key);
+                            System.out.println("Removed expired key: " + key);
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        });
+
+        cleanerThread.setDaemon(true);
+        cleanerThread.start();
         
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Server is online! Waiting for a client to connect...");
@@ -38,17 +77,30 @@ public class Main {
                     if (commandParts[0].equals("SET")) {
                         String key = commandParts[1];
                         String value = commandParts[2];
-                        dataStore.put(key, value);
-                        System.out.println("SET command executed: Key = " + key + ", Value = " + value);
+                        long expiryTime = 0;
+                        // Check if the command has an expiration time 
+                        // Example: *5\r\n$3\r\nSET\r\n$4\r\nname\r\n$5\r\nAyaan\r\n$2\r\nEX\r\n$2\r\n10\r\n
+                        // SET name Ayaan EX 10
+                        if (commandParts.length == 5 && commandParts[3].equals("EX")) {
+                            long expirySeconds = Long.parseLong(commandParts[4]);
+                            expiryTime = System.currentTimeMillis() + (expirySeconds * 1000);
+                        }
+
+                        dataStore.put(key, new ExpiringValue(value, expiryTime));
+                        System.out.println("SET command executed: Key = " + key + ", Value = " + value + ", Expiry = " + (expiryTime == 0 ? "No expiry" : expiryTime));
                         //RESP format for simple string: +OK\r\n
                         out.print("+OK\r\n");
                         out.flush();
                     } else if (commandParts[0].equals("GET")) {
                         String key = commandParts[1];
-                        String value = dataStore.get(key);
+                        ExpiringValue value = dataStore.get(key);
+                        if (value != null && value.isExpired()) { // Checking for expiration if the background process hasn't removed it yet
+                            dataStore.remove(key);
+                            value = null;
+                        }
                         if (value != null) {
                             //RESP format for bulk string: $<length>\r\n<value>\r\n
-                            out.print("$" + value.length() + "\r\n" + value + "\r\n");
+                            out.print("$" + value.value.length() + "\r\n" + value.value + "\r\n");
                         } else {
                             //RESP format for nil bulk string: $-1\r\n
                             out.print("$-1\r\n");
