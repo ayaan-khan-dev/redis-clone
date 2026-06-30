@@ -6,7 +6,7 @@ import java.net.Socket;
 
 public class Main {
     public static void main(String[] args) {
-        int port = 6379; // The standard Redis port
+        int port = 6379;
         
         System.out.println("Starting server on port " + port);
         
@@ -21,9 +21,28 @@ public class Main {
             
             String inputLine;
             while ((inputLine = in.readLine()) != null) {
-                System.out.println("Received from client: " + inputLine);
+                //parsing the RESP
+                //Example: *3\r\n$3\r\nSET\r\n$4\r\nname\r\n$5\r\nAyaan\r\n
+                if (inputLine.startsWith("*")) {
+                    int arraySize = Integer.parseInt(inputLine.substring(1));
+                    String[] commandParts = new String[arraySize];
+                    for (int i = 0; i < arraySize; i++) {
+                        in.readLine();
+                        String commandLine = in.readLine();
+                        commandParts[i] = commandLine;
+                    }
+                    System.out.println("RESP Protocol: " + String.join(" ", commandParts));
+                    System.out.print("Parsed Command Array: [");
+                    for (String cmd : commandParts) {
+                        System.out.print(" \"" + cmd + "\" ");
+                    }
+                    System.out.println("]");
+                } else {
+                    System.out.println("Received: " + inputLine);
+                }
                 
-                out.println("Echo: " + inputLine);
+                out.print("+OK\r\n");
+                out.flush();
             }
             
             System.out.println("Client disconnected.");
