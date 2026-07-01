@@ -4,6 +4,8 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 
 public class Main {
     private static final ConcurrentHashMap<String, ExpiringValue> dataStore = new ConcurrentHashMap<>();
@@ -50,16 +52,30 @@ public class Main {
 
         cleanerThread.setDaemon(true);
         cleanerThread.start();
+
+        ExecutorService executorService = Executors.newFixedThreadPool(10); // Thread pool for handling multiple clients
         
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Server is online! Waiting for a client to connect...");
             
-            Socket clientSocket = serverSocket.accept();
-            System.out.println("Client connected from: " + clientSocket.getRemoteSocketAddress());
+            while (true) {
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("Client connected from: " + clientSocket.getRemoteSocketAddress());
+                executorService.submit(() -> handleClient(clientSocket));
+            }
             
+            
+        } catch (Exception e) {
+            System.out.println("Server exception: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private static void handleClient(Socket clientSocket) {
+        try (
             BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-            
+        ){           
             String inputLine;
             while ((inputLine = in.readLine()) != null) {
                 //parsing the RESP
@@ -130,15 +146,11 @@ public class Main {
                 } else {
                     System.out.println("Received: " + inputLine);
                 }
-                
-                out.print("+OK\r\n");
-                out.flush();
             }
             
             System.out.println("Client disconnected.");
-            
         } catch (Exception e) {
-            System.out.println("Server exception: " + e.getMessage());
+            System.out.println("Client handler exception: " + e.getMessage());
             e.printStackTrace();
         }
     }
