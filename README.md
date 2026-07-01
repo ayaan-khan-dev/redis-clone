@@ -1,18 +1,17 @@
-## Getting Started
+# Multi-threaded redis clone
 
-Welcome to the VS Code Java world. Here is a guideline to help you get started to write Java code in Visual Studio Code.
+An in memory key-value database written in Java from scratch. 
+This project replicates core functions of Redis, utilizing TCP sockets, a custom RESP parser, and a TTL eviction system.
 
-## Folder Structure
+## Overview
 
-The workspace contains two folders by default, where:
+1. The host (main thread) constantly listens on port 6379 using `ServerSocket.accept()`.
+2. When a client connects, the main thread hands the socket over to another thread using `ExecutorService` in order to handle multiple clients which will then run the main command loop.
+3. A daemon thread runs an infinite loop in the background which will check every second to see if any keys have expired.
 
-- `src`: the folder to maintain sources
-- `lib`: the folder to maintain dependencies
+## Supported Commands
 
-Meanwhile, the compiled output files will be generated in the `bin` folder by default.
-
-> If you want to customize the folder structure, open `.vscode/settings.json` and update the related settings there.
-
-## Dependency Management
-
-The `JAVA PROJECTS` view allows you to manage your dependencies. More details can be found [here](https://github.com/microsoft/vscode-java-dependency#manage-dependencies).
+* `PING` -> Replies with `+PONG`
+* `SET <key> <value>` -> Stores a key-value pair
+* `SET <key> <value> EX <seconds>` -> Stores a key-value pair with an expiration
+* `GET <key>` -> Retrieves the value of a key if it exists, otherwise returns `$-1`
