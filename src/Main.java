@@ -136,6 +136,29 @@ public class Main {
                             out.print(":0\r\n");
                         }
                         out.flush();
+                    } else if (commandParts[0].equals("INCR")) {
+                        String key = commandParts[1];
+                        ExpiringValue value = dataStore.get(key);
+                        if (value != null && value.isExpired()) { // Checking for expiration if the background process hasn't removed it yet
+                            dataStore.remove(key);
+                            value = null;
+                        }
+
+                        
+                        if (value != null) {
+                            try {
+                                int intValue = Integer.parseInt(value.value);
+                                intValue++;
+                                dataStore.put(key, new ExpiringValue(String.valueOf(intValue), value.expirationTime));
+                                out.print(":" + intValue + "\r\n");
+                            } catch (NumberFormatException e) {
+                                out.print("-ERR value is not an integer\r\n");
+                            }
+                        } else { // If the key does not exist, set it to 1
+                            dataStore.put(key, new ExpiringValue("1", 0));
+                            out.print(":1\r\n");
+                        }
+                        out.flush();
                     } else {
                         System.out.println("Unknown command: " + commandParts[0]);
                         //RESP format for error: -Error message\r\n
