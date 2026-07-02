@@ -3,12 +3,15 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 
 public class Main {
     private static final ConcurrentHashMap<String, ExpiringValue> dataStore = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, List<Socket>> subscriptions = new ConcurrentHashMap<>();
 
     static class ExpiringValue {
         String value;
@@ -158,6 +161,31 @@ public class Main {
                             dataStore.put(key, new ExpiringValue("1", 0));
                             out.print(":1\r\n");
                         }
+                        out.flush();
+                    } else if (commandParts[0].equals("SUBSCRIBE")) {
+                        String channel = commandParts[1];
+                        subscriptions.putIfAbsent(channel, new CopyOnWriteArrayList<>());
+                        subscriptions.get(channel).add(clientSocket);
+                        System.out.println("Client" + clientSocket.getRemoteSocketAddress() + " subscribed to channel: " + channel);
+                        out.print("+Subscribed to channel: " + channel + "\r\n");
+                        out.flush();
+                    } else if (commandParts[0].equals("PUBLISH")) {
+                        String channel = commandParts[1];
+                        String message = commandParts[2];
+                        List<Socket> subscribers = subscriptions.get(channel);
+                        if (subscribers != null) {
+                            for (Socket subscriber : subscribers) {
+                                try {
+                                    PrintWriter subscriberOut = new PrintWriter(subscriber.getOutputStream(), true);
+                                    //RESP format for message: +message\r\n
+                                    subscriberOut.print("+Message from channel " + channel + ": " + message + "\r\n");
+                                    subscriberOut.flush();
+                                } catch (Exception e) {
+                                    System.out.println("Failed to send message to subscriber: " + e.getMessage());
+                                }
+                            }
+                        }
+                        out.print("+Message published to channel: " + channel + "\r\n");
                         out.flush();
                     } else {
                         System.out.println("Unknown command: " + commandParts[0]);
