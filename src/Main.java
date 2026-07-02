@@ -212,6 +212,17 @@ public class Main {
                         }
                         out.print("+Message published to channel: " + channel + "\r\n");
                         out.flush();
+                    } else if (commandParts[0].equals("UNSUBSCRIBE")) {
+                        String channel = commandParts[1];
+                        List<Socket> subscribers = subscriptions.get(channel);
+                        if (subscribers != null) {
+                            subscribers.remove(clientSocket);
+                            System.out.println("Client" + clientSocket.getRemoteSocketAddress() + " unsubscribed from channel: " + channel);
+                            out.print("+Unsubscribed from channel: " + channel + "\r\n");
+                        } else {
+                            out.print("-ERR not subscribed to channel: " + channel + "\r\n");
+                        }
+                        out.flush();
                     } else {
                         System.out.println("Unknown command: " + commandParts[0]);
                         //RESP format for error: -Error message\r\n

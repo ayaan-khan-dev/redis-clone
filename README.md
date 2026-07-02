@@ -18,4 +18,5 @@ This project replicates core functions of Redis, utilizing TCP sockets, a custom
 * `INCR <key>` -> If the value of the key is a number then increases it by 1. If the value doesn't exist then it is set to 1. Returns the new value.
 * `DECR <key>` -> If the value of the key is a number then decreases it by 1. If the value doesn't exist then it is set to -1. Returns the new value.
 * `SUBSCRIBE <channel>` -> Subscribe to a channel, creates one if doesn't exist.
+* `UNSUBSCRIBE <channel>` -> Unsubscribe to a channel.
 * `PUBLISH <channel> <message>` -> Publish a message to everyone subscribed to a channel.
