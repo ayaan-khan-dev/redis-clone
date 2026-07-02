@@ -14,4 +14,5 @@ This project replicates core functions of Redis, utilizing TCP sockets, a custom
 * `PING` -> Replies with `+PONG`
 * `SET <key> <value>` -> Stores a key-value pair
 * `SET <key> <value> EX <seconds>` -> Stores a key-value pair with an expiration
-* `GET <key>` -> Retrieves the value of a key if it exists, otherwise returns `$-1`
+* `GET <key>` -> Returns the value of a key if it exists, otherwise returns `$-1`
+* `INCR <key>` -> If the key a number then increases it by 1. If the key doesn't exist then the value is set to 1. Returns the new value.
