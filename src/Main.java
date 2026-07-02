@@ -162,6 +162,28 @@ public class Main {
                             out.print(":1\r\n");
                         }
                         out.flush();
+                    } else if (commandParts[0].equals("DECR")) {
+                        String key = commandParts[1];
+                        ExpiringValue value = dataStore.get(key);
+                        if (value != null && value.isExpired()) { // Checking for expiration if the background process hasn't removed it yet
+                            dataStore.remove(key);
+                            value = null;
+                        }
+
+                        if (value != null) {
+                            try {
+                                int intValue = Integer.parseInt(value.value);
+                                intValue--;
+                                dataStore.put(key, new ExpiringValue(String.valueOf(intValue), value.expirationTime));
+                                out.print(":" + intValue + "\r\n");
+                            } catch (NumberFormatException e) {
+                                out.print("-ERR value is not an integer\r\n");
+                            }
+                        } else { // If the key does not exist, set it to -1
+                            dataStore.put(key, new ExpiringValue("-1", 0));
+                            out.print(":-1\r\n");
+                        }
+                        out.flush();
                     } else if (commandParts[0].equals("SUBSCRIBE")) {
                         String channel = commandParts[1];
                         subscriptions.putIfAbsent(channel, new CopyOnWriteArrayList<>());
@@ -178,12 +200,15 @@ public class Main {
                                 try {
                                     PrintWriter subscriberOut = new PrintWriter(subscriber.getOutputStream(), true);
                                     //RESP format for message: +message\r\n
-                                    subscriberOut.print("+Message from channel " + channel + ": " + message + "\r\n");
+                                    subscriberOut.print("+Message from " + channel + ": " + message + "\r\n");
                                     subscriberOut.flush();
                                 } catch (Exception e) {
                                     System.out.println("Failed to send message to subscriber: " + e.getMessage());
                                 }
                             }
+                        }
+                        else {
+                            System.out.println("No subscribers for channel: " + channel);
                         }
                         out.print("+Message published to channel: " + channel + "\r\n");
                         out.flush();
