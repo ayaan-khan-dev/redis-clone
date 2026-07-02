@@ -11,7 +11,7 @@ This project replicates core functions of Redis, utilizing TCP sockets, a custom
 
 ## Supported Commands
 
-* `PING` -> Replies with `+PONG`
+* `PING` -> Returns `+PONG`
 * `SET <key> <value>` -> Stores a key-value pair
 * `SET <key> <value> EX <seconds>` -> Stores a key-value pair with an expiration
 * `GET <key>` -> Returns the value of a key if it exists, otherwise returns `$-1`
