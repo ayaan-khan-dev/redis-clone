@@ -15,8 +15,11 @@ This project replicates core functions of Redis, utilizing TCP sockets, a custom
 * `SET <key> <value>` -> Stores a key-value pair
 * `SET <key> <value> EX <seconds>` -> Stores a key-value pair with an expiration
 * `GET <key>` -> Returns the value of a key if it exists, otherwise returns `$-1`
+* `DEL <key>` -> removes this key-value pair.
 * `INCR <key>` -> If the value of the key is a number then increases it by 1. If the value doesn't exist then it is set to 1. Returns the new value.
 * `DECR <key>` -> If the value of the key is a number then decreases it by 1. If the value doesn't exist then it is set to -1. Returns the new value.
 * `SUBSCRIBE <channel>` -> Subscribe to a channel, creates one if doesn't exist.
 * `UNSUBSCRIBE <channel>` -> Unsubscribe to a channel.
 * `PUBLISH <channel> <message>` -> Publish a message to everyone subscribed to a channel.
+* `MULTI` -> Queues up commands.
+* `EXEC` -> runs all queued commands in order at once.
