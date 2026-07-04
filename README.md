@@ -22,4 +22,5 @@ This project replicates core functions of Redis, utilizing TCP sockets, a custom
 * `UNSUBSCRIBE <channel>` -> Unsubscribe to a channel.
 * `PUBLISH <channel> <message>` -> Publish a message to everyone subscribed to a channel.
 * `MULTI` -> Queues up commands.
-* `EXEC` -> runs all queued commands in order at once.
+* `EXEC` -> Runs all queued commands in order at once.
+* `DISCARD` -> Cancels queue.

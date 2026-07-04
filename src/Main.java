@@ -11,8 +11,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 
 public class Main {
-    public static final ConcurrentHashMap<String, ExpiringValue> dataStore = new ConcurrentHashMap<>();
-    public static final ConcurrentHashMap<String, List<Socket>> subscriptions = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, ExpiringValue> dataStore = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, List<Socket>> subscriptions = new ConcurrentHashMap<>();
 
     static class ExpiringValue {
         String value;
@@ -250,15 +250,19 @@ public class Main {
                             executeCommand(queuedCommandParts, out, clientSocket);
                         }
                         multiQueue.clear();
-                    }
-                    else if (inQueue) {
-                        multiQueue.add(String.join(" ", commandParts));
-                        out.print("+QUEUED\r\n");
+                    } else if (commandParts[0].equals("DISCARD")) {
+                        multiQueue.clear();
+                        inQueue = false;
+                        out.print("+OK\r\n");
                         out.flush();
                     } else if (commandParts[0].equals("MULTI")) {
                         multiQueue.clear();
                         inQueue = true;
                         out.print("+OK\r\n");
+                        out.flush();
+                    } else if (inQueue) {
+                        multiQueue.add(String.join(" ", commandParts));
+                        out.print("+QUEUED\r\n");
                         out.flush();
                     } else {
                         executeCommand(commandParts, out, clientSocket);
