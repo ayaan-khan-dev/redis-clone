@@ -14,22 +14,6 @@ public class Main {
     private static final ConcurrentHashMap<String, ExpiringValue> dataStore = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, List<Socket>> subscriptions = new ConcurrentHashMap<>();
 
-    static class ExpiringValue {
-        String value;
-        long expirationTime;
-
-        public ExpiringValue(String value, long expirationTime) {
-            this.value = value;
-            this.expirationTime = expirationTime;
-        }
-
-        public boolean isExpired() {
-            if (expirationTime == 0) {
-                return false; // No expiration
-            }
-            return System.currentTimeMillis() > expirationTime;
-        }
-    }
     public static void main(String[] args) {
         int port = 6379;
         
@@ -111,7 +95,7 @@ public class Main {
             }
             if (value != null) {
                 //RESP format for bulk string: $<length>\r\n<value>\r\n
-                out.print("$" + value.value.length() + "\r\n" + value.value + "\r\n");
+                out.print("$" + value.getValue().length() + "\r\n" + value.getValue() + "\r\n");
             } else {
                 //RESP format for nil bulk string: $-1\r\n
                 out.print("$-1\r\n");
@@ -141,9 +125,9 @@ public class Main {
 
             if (value != null) {
                 try {
-                    int intValue = Integer.parseInt(value.value);
+                    int intValue = Integer.parseInt(value.getValue());
                     intValue++;
-                    dataStore.put(key, new ExpiringValue(String.valueOf(intValue), value.expirationTime));
+                    dataStore.put(key, new ExpiringValue(String.valueOf(intValue), value.getExpirationTime()));
                     out.print(":" + intValue + "\r\n");
                 } catch (NumberFormatException e) {
                     out.print("-ERR value is not an integer\r\n");
@@ -164,9 +148,9 @@ public class Main {
 
             if (value != null) {
                 try {
-                    int intValue = Integer.parseInt(value.value);
+                    int intValue = Integer.parseInt(value.getValue());
                     intValue--;
-                    dataStore.put(key, new ExpiringValue(String.valueOf(intValue), value.expirationTime));
+                    dataStore.put(key, new ExpiringValue(String.valueOf(intValue), value.getExpirationTime()));
                     out.print(":" + intValue + "\r\n");
                 } catch (NumberFormatException e) {
                     out.print("-ERR value is not an integer\r\n");
