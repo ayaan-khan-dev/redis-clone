@@ -9,10 +9,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.Map;
 
 public class Main {
     private static final ConcurrentHashMap<String, ExpiringValue> dataStore = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, List<Socket>> subscriptions = new ConcurrentHashMap<>();
+    private static final int maxKeys = 10000;
 
     public static void main(String[] args) {
         int port = 6379;
@@ -59,17 +61,30 @@ public class Main {
         }
     }
 
-    private static void executeCommand(String[] commandParts, PrintWriter out, Socket clientSocket) {
-        if (commandParts[0].equals("MULTI")) {
-            
-       /*  } else if (commandParts[0].equals("EXEC")) {
-            inQueue = false;
-            for (String queuedCommand : multiQueue) {
-                String[] queuedCommandParts = queuedCommand.split(" ");
-                executeCommand(queuedCommandParts, out, clientSocket);
+    private static void LRUEviction(ConcurrentHashMap<String, ExpiringValue> database) {
+        if (database.size() < maxKeys)
+            return;
+        String oldestKey = null;
+        long oldestUsage = Long.MAX_VALUE;
+
+        for (Map.Entry<String, ExpiringValue> entry : database.entrySet()) { //iterate through hashmap to find key that been used least recently
+            if (entry.getValue().lastAccessed() < oldestUsage) {
+                oldestUsage = entry.getValue().lastAccessed();
+                oldestKey = entry.getKey();
             }
-            multiQueue.clear(); */
-        } else if (commandParts[0].equals("SET")) {
+        }
+
+        if (oldestKey != null) {
+            database.remove(oldestKey);
+            System.out.println("[LRU Eviction] Removed key: " + oldestKey);
+        }
+        
+        
+    }
+
+    private static void executeCommand(String[] commandParts, PrintWriter out, Socket clientSocket) {
+        if (commandParts[0].equals("SET")) {
+            LRUEviction(dataStore);
             String key = commandParts[1];
             String value = commandParts[2];
             long expiryTime = 0;
@@ -95,6 +110,7 @@ public class Main {
             }
             if (value != null) {
                 //RESP format for bulk string: $<length>\r\n<value>\r\n
+                value.Accessed();
                 out.print("$" + value.getValue().length() + "\r\n" + value.getValue() + "\r\n");
             } else {
                 //RESP format for nil bulk string: $-1\r\n

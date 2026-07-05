@@ -1,7 +1,7 @@
 # Multi-threaded redis clone
 
 An in memory key-value database written in Java from scratch. 
-This project replicates core functions of Redis, utilizing TCP sockets, a custom RESP parser, and a TTL eviction system.
+This project replicates core functions of Redis, utilizing TCP sockets, a custom RESP parser, and a TTL + LRU eviction system.
 
 ## Overview
 
