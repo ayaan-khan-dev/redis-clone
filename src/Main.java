@@ -1,6 +1,3 @@
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -10,16 +7,21 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.Map;
+import java.io.*;
 
 public class Main {
     private static final ConcurrentHashMap<String, ExpiringValue> dataStore = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, List<Socket>> subscriptions = new ConcurrentHashMap<>();
     private static final int maxKeys = 10000;
+    private static final int backupFreq = 60000; // ms between backups
+    private static final File snapshotFile = new File("dump.rdb");
 
     public static void main(String[] args) {
         int port = 6379;
         
         System.out.println("Starting server on port " + port);
+
+        loadRDBSnapshot(dataStore);
 
         Thread cleanerThread = new Thread(() -> {
             while (true) {
@@ -40,6 +42,19 @@ public class Main {
             }
         });
 
+        Thread RDBsnapshot = new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(backupFreq);
+                    createRDBSnapshot(dataStore);
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        });
+
+        RDBsnapshot.start();
+
         cleanerThread.setDaemon(true);
         cleanerThread.start();
 
@@ -58,6 +73,57 @@ public class Main {
         } catch (Exception e) {
             System.out.println("Server exception: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    private static void loadRDBSnapshot(ConcurrentHashMap<String, ExpiringValue> database) {
+        if (!snapshotFile.exists()) {
+            System.out.println("No snapshot file found; starting with an empty database.");
+            return;
+        }
+        try (DataInputStream dis = new DataInputStream(new FileInputStream(snapshotFile))) {
+            if (!(dis.readUTF().equals("RDB"))) {
+                System.out.println("Corrupted RDB Snapshot file header");
+                return;
+            }
+
+            int datasize = dis.readInt();
+            long now = System.currentTimeMillis();
+
+            for (int i = 0; i < datasize; i++) {
+                String key = dis.readUTF();
+                String value = dis.readUTF();
+                long ets = dis.readLong();
+                long la = dis.readLong();
+                if (ets == 0 || ets > now)
+                    database.put(key, new ExpiringValue(value, ets, la));
+            }
+
+            System.out.println("Successfully restored " + database.size() + " keys through RDB Snapshot.");
+        } catch (IOException e) {
+            System.out.println("Failed to parse RDB Snapshot: " + e.getMessage());
+        }
+    }
+
+    private static void createRDBSnapshot(ConcurrentHashMap<String, ExpiringValue> database) {
+        try (DataOutputStream dos = new DataOutputStream(new FileOutputStream(snapshotFile))) {
+            dos.writeUTF("RDB");
+            dos.writeInt(database.size());
+
+            for (Map.Entry<String, ExpiringValue> entry : database.entrySet()) {
+                if (entry.getValue().isExpired())
+                    continue;
+                dos.writeUTF(entry.getKey());
+                dos.writeUTF(entry.getValue().getValue());
+                dos.writeLong(entry.getValue().getExpirationTimeSystem());
+                dos.writeLong(entry.getValue().lastAccessed());
+            }
+            dos.flush();
+            System.out.println("RDB successfully saved to " + snapshotFile.getAbsolutePath());
+        } catch (FileNotFoundException e) {
+            System.out.println("FileNotFoundException: " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("IOException: " + e.getMessage());
         }
     }
 

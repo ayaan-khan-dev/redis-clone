@@ -1,13 +1,14 @@
 # Multi-threaded redis clone
 
 An in memory key-value database written in Java from scratch. 
-This project replicates core functions of Redis, utilizing TCP sockets, a custom RESP parser, and a TTL + LRU eviction system.
+This project replicates core functions of Redis, utilizing TCP sockets, a custom RESP parser, RDB snapshotting, and a TTL + LRU eviction system.
 
 ## Overview
 
 1. The host (main thread) constantly listens on port 6379 using `ServerSocket.accept()`.
 2. When a client connects, the main thread hands the socket over to another thread using `ExecutorService` in order to handle multiple clients which will then run the main command loop.
 3. A daemon thread runs an infinite loop in the background which will check every second to see if any keys have expired.
+4. Another thread will run every 60 seconds creating an RDB snapshot which saves the database to dump.rdb which will then be loaded when starting up main.java
 
 ## Supported Commands
 
