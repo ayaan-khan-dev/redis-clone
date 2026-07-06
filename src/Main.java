@@ -127,7 +127,8 @@ public class Main {
 
             if (value != null) {
                 try {
-                    int expiry = (Integer.parseInt(commandParts[2]) * 1000);
+                    long expirySeconds = (Long.parseLong(commandParts[2]) * 1000);
+                    long expiry = System.currentTimeMillis() + expirySeconds;
                     dataStore.put(key, new ExpiringValue(value.getValue(), expiry));
                 } catch (NumberFormatException e) {
                     out.print("-ERR expiration value is not an integer\r\n");
@@ -146,6 +147,9 @@ public class Main {
                 long ms = (value.getExpirationTimeSystem()) - (System.currentTimeMillis());
                 out.print(String.valueOf(ms / 1000) + "\r\n");
                 out.flush();
+            } else {
+                //RESP format for nil bulk string: $-1\r\n
+                out.print("$-1\r\n");
             }
         } else if (commandParts[0].equals("PING")) {
             //RESP format for simple string: +PONG\r\n
@@ -173,7 +177,7 @@ public class Main {
                 try {
                     int intValue = Integer.parseInt(value.getValue());
                     intValue++;
-                    dataStore.put(key, new ExpiringValue(String.valueOf(intValue), value.getExpirationTime()));
+                    dataStore.put(key, new ExpiringValue(String.valueOf(intValue), value.getExpirationTimeSystem()));
                     out.print(":" + intValue + "\r\n");
                 } catch (NumberFormatException e) {
                     out.print("-ERR value is not an integer\r\n");
@@ -196,7 +200,7 @@ public class Main {
                 try {
                     int intValue = Integer.parseInt(value.getValue());
                     intValue--;
-                    dataStore.put(key, new ExpiringValue(String.valueOf(intValue), value.getExpirationTime()));
+                    dataStore.put(key, new ExpiringValue(String.valueOf(intValue), value.getExpirationTimeSystem()));
                     out.print(":" + intValue + "\r\n");
                 } catch (NumberFormatException e) {
                     out.print("-ERR value is not an integer\r\n");

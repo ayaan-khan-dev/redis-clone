@@ -1,22 +1,22 @@
 public class ExpiringValue {
     private String value;
-    private long expirationTime;
     private long lastAccessedTime;
     private long expirationTimeSystem;
 
-    public ExpiringValue(String value, long expirationTime) {
+    public ExpiringValue(String value, long expirationTimeSystem) {
         this.value = value;
-        this.expirationTime = expirationTime;
-        expirationTimeSystem = expirationTime + System.currentTimeMillis();
+        this.expirationTimeSystem = expirationTimeSystem;
         lastAccessedTime = System.currentTimeMillis();
+    }
+
+    public ExpiringValue(String value, long expirationTimeSystem, long lastAccessedTime) {
+        this.value = value;
+        this.expirationTimeSystem = expirationTimeSystem;
+        this.lastAccessedTime = lastAccessedTime;
     }
 
     public String getValue() {
         return value;
-    }
-
-    public long getExpirationTime() {
-        return expirationTime;
     }
 
     public long getExpirationTimeSystem() {
@@ -33,7 +33,7 @@ public class ExpiringValue {
 
 
     public boolean isExpired() {
-        if (expirationTime == 0)
+        if (expirationTimeSystem == 0)
             return false;
         return System.currentTimeMillis() > expirationTimeSystem;
     }
