@@ -117,6 +117,36 @@ public class Main {
                 out.print("$-1\r\n");
             }
             out.flush();
+        } else if (commandParts[0].equals("EXPIRE")) {
+            String key = commandParts[1];
+            ExpiringValue value = dataStore.get(key);
+            if (value != null && value.isExpired()) {
+                dataStore.remove(key);
+                value = null;
+            }
+
+            if (value != null) {
+                try {
+                    int expiry = (Integer.parseInt(commandParts[2]) * 1000);
+                    dataStore.put(key, new ExpiringValue(value.getValue(), expiry));
+                } catch (NumberFormatException e) {
+                    out.print("-ERR expiration value is not an integer\r\n");
+                }
+            }
+        } else if (commandParts[0].equals("TTL")) {
+            String key = commandParts[1];
+            ExpiringValue value = dataStore.get(key);
+
+            if (value != null && value.isExpired()) {
+                dataStore.remove(key);
+                value = null;
+            }
+
+            if (value != null) {
+                long ms = (value.getExpirationTimeSystem()) - (System.currentTimeMillis());
+                out.print(String.valueOf(ms / 1000) + "\r\n");
+                out.flush();
+            }
         } else if (commandParts[0].equals("PING")) {
             //RESP format for simple string: +PONG\r\n
             out.print("+PONG\r\n");

@@ -24,3 +24,5 @@ This project replicates core functions of Redis, utilizing TCP sockets, a custom
 * `MULTI` -> Queues up commands.
 * `EXEC` -> Runs all queued commands in order at once.
 * `DISCARD` -> Cancels queue.
+* `EXPIRE <key> <seconds>` -> Add a TTL expiration to keys.
+* `TTL <key>` -> Check the TTL for a key.
