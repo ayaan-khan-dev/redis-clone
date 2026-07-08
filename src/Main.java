@@ -21,7 +21,7 @@ public class Main {
         
         System.out.println("Starting server on port " + port);
 
-        loadRDBSnapshot(dataStore);
+        loadRDBSnapshot();
 
         Thread cleanerThread = new Thread(() -> {
             while (true) {
@@ -99,9 +99,10 @@ public class Main {
                     dataStore.put(key, new ExpiringValue(value, ets, la));
             }
 
-            System.out.println("Successfully restored " + dataStore.size() + " keys through RDB Snapshot.");
+            System.out.println("Successfully restored " + dataStore.size() + " key(s) through RDB Snapshot.");
         } catch (IOException e) {
             System.out.println("Failed to parse RDB Snapshot: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -122,6 +123,11 @@ public class Main {
             System.out.println("RDB successfully saved to " + snapshotFile.getAbsolutePath());
         } catch (FileNotFoundException e) {
             System.out.println("FileNotFoundException: " + e.getMessage());
+            e.printStackTrace();
+        } catch (IOException e) {
+            System.out.println("IOException: " + e.getMessage());
+            e.printStackTrace();
+        }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
         }
@@ -186,6 +192,15 @@ public class Main {
                 out.print("$-1\r\n");
             }
             out.flush();
+        } else if (commandParts[0].equals("KEYS")) {
+            if (commandParts[1].equals("*")) {
+                for (Map.Entry<String, ExpiringValue> entry : dataStore.entrySet()) {
+                    if (entry.getValue().isExpired())
+                        continue;
+                    out.print(entry.getKey() + "\r\n");
+                }
+                out.flush();
+            }
         } else if (commandParts[0].equals("EXPIRE")) {
             String key = commandParts[1];
             ExpiringValue value = dataStore.get(key);

@@ -8,7 +8,7 @@ This project replicates core functions of Redis, utilizing TCP sockets, a custom
 1. The host (main thread) constantly listens on port 6379 using `ServerSocket.accept()`.
 2. When a client connects, the main thread hands the socket over to another thread using `ExecutorService` in order to handle multiple clients which will then run the main command loop.
 3. A daemon thread runs an infinite loop in the background which will check every second to see if any keys have expired.
-4. Another thread will run every 60 seconds creating an RDB snapshot which saves the database to dump.rdb which will then be loaded when starting up main.java
+4. Another thread will run every 5 minutes creating an RDB snapshot which saves the database to dump.rdb which will then be loaded when starting up main.java
 
 ## Supported Commands
 
@@ -29,3 +29,4 @@ This project replicates core functions of Redis, utilizing TCP sockets, a custom
 * `EXPIRE <key> <seconds>` -> Add a TTL expiration to keys.
 * `PEXPIREAT <key> <unix-time-milliseconds>` -> Set a specific Unix time at which the key will expire in milliseconds.
 * `TTL <key>` -> Check the TTL for a key.
+* `KEYS *` -> Returns all keys.
