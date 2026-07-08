@@ -15,6 +15,7 @@ This project replicates core functions of Redis, utilizing TCP sockets, a custom
 * `PING` -> Returns `+PONG`
 * `SET <key> <value>` -> Stores a key-value pair
 * `SET <key> <value> EX <seconds>` -> Stores a key-value pair with an expiration
+* `SET <key> <value> PXAT <unix-time-milliseconds>` -> Stores a key-value pair with a specific Unix time at which the key will expire in milliseconds.
 * `GET <key>` -> Returns the value of a key if it exists, otherwise returns `$-1`
 * `DEL <key>` -> removes this key-value pair.
 * `INCR <key>` -> If the value of the key is a number then increases it by 1. If the value doesn't exist then it is set to 1. Returns the new value.
@@ -26,4 +27,5 @@ This project replicates core functions of Redis, utilizing TCP sockets, a custom
 * `EXEC` -> Runs all queued commands in order at once.
 * `DISCARD` -> Cancels queue.
 * `EXPIRE <key> <seconds>` -> Add a TTL expiration to keys.
+* `PEXPIREAT <key> <unix-time-milliseconds>` -> Set a specific Unix time at which the key will expire in milliseconds.
 * `TTL <key>` -> Check the TTL for a key.

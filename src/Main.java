@@ -46,7 +46,7 @@ public class Main {
             while (true) {
                 try {
                     Thread.sleep(backupFreq);
-                    createRDBSnapshot(dataStore);
+                    createRDBSnapshot();
                 } catch (InterruptedException e) {
                     break;
                 }
@@ -76,7 +76,7 @@ public class Main {
         }
     }
 
-    private static void loadRDBSnapshot(ConcurrentHashMap<String, ExpiringValue> database) {
+    private static void loadRDBSnapshot() {
         if (!snapshotFile.exists()) {
             System.out.println("No snapshot file found; starting with an empty database.");
             return;
@@ -96,21 +96,21 @@ public class Main {
                 long ets = dis.readLong();
                 long la = dis.readLong();
                 if (ets == 0 || ets > now)
-                    database.put(key, new ExpiringValue(value, ets, la));
+                    dataStore.put(key, new ExpiringValue(value, ets, la));
             }
 
-            System.out.println("Successfully restored " + database.size() + " keys through RDB Snapshot.");
+            System.out.println("Successfully restored " + dataStore.size() + " keys through RDB Snapshot.");
         } catch (IOException e) {
             System.out.println("Failed to parse RDB Snapshot: " + e.getMessage());
         }
     }
 
-    private static void createRDBSnapshot(ConcurrentHashMap<String, ExpiringValue> database) {
+    private static void createRDBSnapshot() {
         try (DataOutputStream dos = new DataOutputStream(new FileOutputStream(snapshotFile))) {
             dos.writeUTF("RDB");
-            dos.writeInt(database.size());
+            dos.writeInt(dataStore.size());
 
-            for (Map.Entry<String, ExpiringValue> entry : database.entrySet()) {
+            for (Map.Entry<String, ExpiringValue> entry : dataStore.entrySet()) {
                 if (entry.getValue().isExpired())
                     continue;
                 dos.writeUTF(entry.getKey());
@@ -127,13 +127,13 @@ public class Main {
         }
     }
 
-    private static void LRUEviction(ConcurrentHashMap<String, ExpiringValue> database) {
-        if (database.size() < maxKeys)
+    private static void LRUEviction() {
+        if (dataStore.size() < maxKeys)
             return;
         String oldestKey = null;
         long oldestUsage = Long.MAX_VALUE;
 
-        for (Map.Entry<String, ExpiringValue> entry : database.entrySet()) { //iterate through hashmap to find key that been used least recently
+        for (Map.Entry<String, ExpiringValue> entry : dataStore.entrySet()) { //iterate through hashmap to find key that been used least recently
             if (entry.getValue().lastAccessed() < oldestUsage) {
                 oldestUsage = entry.getValue().lastAccessed();
                 oldestKey = entry.getKey();
@@ -141,7 +141,7 @@ public class Main {
         }
 
         if (oldestKey != null) {
-            database.remove(oldestKey);
+            dataStore.remove(oldestKey);
             System.out.println("[LRU Eviction] Removed key: " + oldestKey);
         }
         
@@ -150,7 +150,7 @@ public class Main {
 
     private static void executeCommand(String[] commandParts, PrintWriter out, Socket clientSocket) {
         if (commandParts[0].equals("SET")) {
-            LRUEviction(dataStore);
+            LRUEviction();
             String key = commandParts[1];
             String value = commandParts[2];
             long expiryTime = 0;
@@ -160,6 +160,8 @@ public class Main {
             if (commandParts.length == 5 && commandParts[3].equals("EX")) {
                 long expirySeconds = Long.parseLong(commandParts[4]);
                 expiryTime = System.currentTimeMillis() + (expirySeconds * 1000);
+            } else if (commandParts.length == 5 && commandParts[3].equals("PXAT")) {
+                expiryTime = Long.parseLong(commandParts[4]);
             }
 
             dataStore.put(key, new ExpiringValue(value, expiryTime));
@@ -173,6 +175,7 @@ public class Main {
             if (value != null && value.isExpired()) { // Checking for expiration if the background process hasn't removed it yet
                 dataStore.remove(key);
                 value = null;
+                out.print("$-1\r\n");
             }
             if (value != null) {
                 //RESP format for bulk string: $<length>\r\n<value>\r\n
@@ -189,13 +192,31 @@ public class Main {
             if (value != null && value.isExpired()) {
                 dataStore.remove(key);
                 value = null;
+                out.print("$-1\r\n");
             }
 
             if (value != null) {
                 try {
                     long expirySeconds = (Long.parseLong(commandParts[2]) * 1000);
-                    long expiry = System.currentTimeMillis() + expirySeconds;
-                    dataStore.put(key, new ExpiringValue(value.getValue(), expiry));
+                    long expiryTime = System.currentTimeMillis() + expirySeconds;
+                    dataStore.put(key, new ExpiringValue(value.getValue(), expiryTime));
+                } catch (NumberFormatException e) {
+                    out.print("-ERR expiration value is not an integer\r\n");
+                }
+            }
+        } else if (commandParts[0].equals("PEXPIREAT")) {
+            String key = commandParts[1];
+            ExpiringValue value = dataStore.get(key);
+            if (value != null && value.isExpired()) {
+                dataStore.remove(key);
+                value = null;
+                out.print("$-1\r\n");
+            }
+
+            if (value != null) {
+                try {
+                    long expiryTime = (Long.parseLong(commandParts[2]));
+                    dataStore.put(key, new ExpiringValue(value.getValue(), expiryTime));
                 } catch (NumberFormatException e) {
                     out.print("-ERR expiration value is not an integer\r\n");
                 }
@@ -207,6 +228,7 @@ public class Main {
             if (value != null && value.isExpired()) {
                 dataStore.remove(key);
                 value = null;
+                out.print("$-1\r\n");
             }
 
             if (value != null) {
@@ -237,6 +259,7 @@ public class Main {
             if (value != null && value.isExpired()) { // Checking for expiration if the background process hasn't removed it yet
                 dataStore.remove(key);
                 value = null;
+                out.print("$-1\r\n");
             }
 
             if (value != null) {
@@ -260,6 +283,7 @@ public class Main {
             if (value != null && value.isExpired()) { // Checking for expiration if the background process hasn't removed it yet
                 dataStore.remove(key);
                 value = null;
+                out.print("$-1\r\n");
             }
 
             if (value != null) {
@@ -341,6 +365,7 @@ public class Main {
                         in.readLine();
                         commandParts[i] = in.readLine();
                     }
+                    
 
                     System.out.println("Received command: " + String.join(" ", commandParts));
                     if (inQueue && commandParts[0].equals("EXEC")) {
